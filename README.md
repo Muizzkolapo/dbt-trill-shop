@@ -1,22 +1,35 @@
-# 🥪 The Jaffle Shop 🦘
+# dbt PR Review Agent
 
-This is a sandbox project for exploring the basic functionality and latest features of dbt. It's based on a fictional restaurant called the Jaffle Shop that serves [jaffles](https://en.wikipedia.org/wiki/Pie_iron).
+A universal dbt PR Review Agent built in Rust with a multi-agent architecture for comprehensive automated pull request analysis.
 
-This README will guide you through setting up the project on dbt Cloud. Working through this example should give you a good sense of how dbt Cloud works and what's involved with setting up your own project. We'll also _optionally_ cover some intermediate topics like setting up Environments and Jobs in dbt Cloud, working with a larger dataset, and setting up pre-commit hooks if you'd like.
+## Features
 
-> [!NOTE]
-> This project is geared towards folks learning dbt Cloud with a cloud warehouse. If you're brand new to dbt, we recommend starting with the [dbt Learn](https://learn.getdbt.com/) platform. It's a free, interactive way to learn dbt, and it's a great way to get started if you're new to the tool. If you just want to try dbt locally as quickly as possible without setting up a data warehouse check out [`jaffle_shop_duckdb`](https://github.com/dbt-labs/jaffle_shop_duckdb).
+- 🔍 **Universal dbt Support**: Works with any dbt project structure (no hardcoded folder assumptions)
+- 🏢 **Multi-Warehouse Compatible**: BigQuery, Snowflake, Databricks, Redshift, etc.
+- 📊 **Artifact-Based Discovery**: Uses `manifest.json`, `catalog.json`, and `run_results.json`
+- 🤖 **Multi-Agent Architecture**: Specialized agents for different analysis domains
+- 🔗 **GitHub Integration**: Automated PR comments and status checks
+- ⚠️ **Risk Assessment**: Intelligent risk scoring and approval recommendations
 
-Ready to go? Grab some water and a nice snack, and let's dig in!
+## Multi-Agent System
 
-<div>
- <a href="https://www.loom.com/share/a90b383eea594a0ea41e91af394b2811?t=0&sid=da832f06-c08e-43e7-acae-a2a3d8d191bd">
-   <p>Welcome to the Jaffle Shop - Watch Intro Video</p>
- </a>
- <a href="https://www.loom.com/share/a90b383eea594a0ea41e91af394b2811?t=0&sid=da832f06-c08e-43e7-acae-a2a3d8d191bd">
-   <img style="max-width:300px;" src="https://cdn.loom.com/sessions/thumbnails/a90b383eea594a0ea41e91af394b2811-with-play.gif">
- </a>
-</div>
+- **Impact Analysis Agent**: Analyzes downstream effects using lineage graphs
+- **Quality Validation Agent**: Ensures code quality, documentation, and testing standards  
+- **Performance & Cost Agent**: Analyzes query performance and cost implications
+
+## Installation
+
+### Prerequisites
+- Rust 1.70+
+- A dbt project with generated artifacts (`dbt compile` or `dbt run`)
+- GitHub token for PR analysis (optional)
+
+### Build from Source
+```bash
+git clone <repository-url>
+cd dbt-pr-review-agent
+cargo build --release
+```
 
 ## Table of contents
 
@@ -288,3 +301,67 @@ At present, the popular SQL linter and formatter SQLFluff doesn't play nicely wi
 We have kept a `.sqlfluff` config file to show what that looks like, and to future proof the repo for when the Cloud CLI support linting and formatting.
 
 [^1]: Again, I can't emphasize enough that you should not use dbt and seeds for data loading in a production project. This is just for convenience within this learning project.
+
+---
+
+## 🤖 dbt PR Review Agent
+
+This repository also includes a **universal dbt PR Review Agent** built in Rust with a multi-agent architecture for comprehensive automated pull request analysis.
+
+### Agent Features
+
+- ✅ **Universal dbt Support**: Works with any dbt project structure (no hardcoded folder assumptions)
+- ✅ **Multi-Warehouse Compatible**: BigQuery, Snowflake, Databricks, Redshift, etc.
+- ✅ **Artifact-Based Discovery**: Uses `manifest.json`, `catalog.json`, and `run_results.json`
+- ✅ **Multi-Agent Architecture**: Specialized agents for different analysis domains
+- ✅ **GitHub Integration**: Automated PR comments and status checks
+- ✅ **Risk Assessment**: Intelligent risk scoring and approval recommendations
+
+### Quick Start with the Agent
+
+#### Prerequisites
+- Rust 1.70+
+- dbt artifacts generated (`dbt compile` or `dbt run`)
+- GitHub token for PR analysis (optional)
+
+#### Build the Agent
+```bash
+cargo build --release
+```
+
+#### Validate Your dbt Project
+```bash
+./target/release/dbt-pr-agent validate-project
+```
+
+#### Test Local Analysis
+```bash
+./target/release/dbt-pr-agent analyze-local \
+  --files models/staging/stg_international_top_rising_terms.sql
+```
+
+#### Analyze a GitHub PR
+```bash
+./target/release/dbt-pr-agent analyze-pr \
+  --repo "owner/repo" \
+  --pr-number 123 \
+  --token $GITHUB_TOKEN \
+  --output markdown
+```
+
+### Multi-Agent Architecture
+
+- **Impact Analysis Agent**: Analyzes downstream effects using lineage graphs
+- **Quality Validation Agent**: Ensures code quality, documentation, and testing standards
+- **Performance & Cost Agent**: Analyzes query performance and cost implications
+
+### Sample Project for Testing
+
+This Google Trends dbt project serves as a perfect test case for the PR Review Agent:
+
+- **7 Models**: Staging and mart models for comprehensive lineage testing
+- **68 Tests**: Complete data quality validation coverage
+- **4 Sources**: BigQuery tables with 250M+ rows of real data
+- **Complete Documentation**: Doc blocks and rich markdown documentation
+
+The agent will analyze this project structure, dependencies, and provide insights on any changes you make, demonstrating its capability to work with real-world dbt projects at scale.
