@@ -483,6 +483,43 @@ impl LineageAnalyzer {
 
         Ok(depth_map)
     }
+    
+    /// Export lineage graph to DOT format for visualization
+    pub fn export_to_dot(&self, highlight_nodes: &[String]) -> Result<String> {
+        let lineage_graph = self.build_dependency_graph()?;
+        let graph = &lineage_graph.graph;
+        let mut dot = String::from("digraph LineageGraph {\n");
+        dot.push_str("  rankdir=TB;\n");
+        dot.push_str("  node [shape=box];\n");
+        
+        // Add nodes
+        for node_idx in graph.node_indices() {
+            if let Some(node_name) = graph.node_weight(node_idx) {
+                let is_highlighted = highlight_nodes.contains(node_name);
+                let color = if is_highlighted { "red" } else { "black" };
+                let style = if is_highlighted { "filled" } else { "solid" };
+                let fillcolor = if is_highlighted { "lightpink" } else { "white" };
+                
+                dot.push_str(&format!(
+                    "  \"{}\" [color={}, style={}, fillcolor={}];\n",
+                    node_name, color, style, fillcolor
+                ));
+            }
+        }
+        
+        // Add edges
+        for edge in graph.edge_indices() {
+            if let Some((source, target)) = graph.edge_endpoints(edge) {
+                if let (Some(source_name), Some(target_name)) = 
+                    (graph.node_weight(source), graph.node_weight(target)) {
+                    dot.push_str(&format!("  \"{}\" -> \"{}\";\n", source_name, target_name));
+                }
+            }
+        }
+        
+        dot.push_str("}\n");
+        Ok(dot)
+    }
 }
 
 #[cfg(test)]

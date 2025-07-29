@@ -404,6 +404,71 @@ impl ArtifactParser {
             Ok(HashMap::new())
         }
     }
+    
+    /// Get model definition (SQL content) for a specific model
+    pub fn get_model_definition(&mut self, model_unique_id: &str) -> Result<String> {
+        let manifest = self.load_manifest()?;
+        let nodes = manifest
+            .get("nodes")
+            .and_then(|n| n.as_object())
+            .context("Invalid manifest structure: missing nodes")?;
+        
+        let model_node = nodes
+            .get(model_unique_id)
+            .context("Model not found in manifest")?;
+        
+        let file_path = model_node
+            .get("original_file_path")
+            .and_then(|p| p.as_str())
+            .context("Model missing file path")?;
+        
+        let full_path = self.project_path.join(file_path);
+        
+        let content = fs::read_to_string(&full_path)
+            .with_context(|| format!("Failed to read model file from {:?}", full_path))?;
+        
+        Ok(content)
+    }
+    
+    /// Get warehouse type from project configuration
+    pub fn get_warehouse_type(&mut self) -> Result<Option<String>> {
+        let manifest = self.load_manifest()?;
+        
+        // Try to detect from adapter type in manifest metadata
+        if let Some(metadata) = manifest.get("metadata") {
+            if let Some(adapter_type) = metadata.get("adapter_type").and_then(|a| a.as_str()) {
+                return Ok(Some(adapter_type.to_string()));
+            }
+        }
+        
+        // Try to detect from project config
+        if let Ok(project_config) = self.get_project_info() {
+            if let Some(profile) = project_config.get("profile").and_then(|p| p.as_str()) {
+                // Could look up profile in profiles.yml if needed
+                return Ok(Some(profile.to_string()));
+            }
+        }
+        
+        // Try to infer from database names in nodes
+        if let Some(nodes) = manifest.get("nodes").and_then(|n| n.as_object()) {
+            for node in nodes.values() {
+                if let Some(database) = node.get("database").and_then(|d| d.as_str()) {
+                    let db_lower = database.to_lowercase();
+                    if db_lower.contains("bigquery") || db_lower.contains("bq") {
+                        return Ok(Some("bigquery".to_string()));
+                    } else if db_lower.contains("snowflake") {
+                        return Ok(Some("snowflake".to_string()));
+                    } else if db_lower.contains("databricks") {
+                        return Ok(Some("databricks".to_string()));
+                    } else if db_lower.contains("redshift") {
+                        return Ok(Some("redshift".to_string()));
+                    }
+                }
+            }
+        }
+        
+        Ok(None)
+    }
 }
 
 #[cfg(test)]

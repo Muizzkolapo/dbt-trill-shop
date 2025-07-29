@@ -70,6 +70,12 @@ clap = { version = "4.0", features = ["derive"] }
 # Hashing utilities
 sha2 = "0.10"
 
+# LLM integrations
+base64 = "0.21"
+eventsource-client = "0.11"  # For streaming responses
+tiktoken-rs = "0.5"  # Token counting
+backoff = { version = "0.4", features = ["tokio"] }  # Retry logic
+
 [dev-dependencies]
 tokio-test = "0.4"
 mockall = "0.11"

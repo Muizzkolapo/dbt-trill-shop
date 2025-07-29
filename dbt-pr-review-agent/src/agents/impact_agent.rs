@@ -2,9 +2,11 @@ use crate::agents::communication::{AgentCommunicationBus, AgentCommunication};
 use crate::artifacts::ArtifactParser;
 use crate::lineage::LineageAnalyzer;
 use crate::types::*;
+use crate::llm::{LLMProvider, LLMRequest, Message, MessageRole, Model, AnalysisContext, AgentPrompts, ResponseFormat};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
+use std::collections::HashMap;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -14,6 +16,7 @@ pub struct ImpactAnalysisAgent {
     lineage_analyzer: LineageAnalyzer,
     communication_bus: Arc<AgentCommunicationBus>,
     agent_name: String,
+    llm_provider: Option<Box<dyn LLMProvider>>,
 }
 
 impl ImpactAnalysisAgent {
@@ -28,6 +31,24 @@ impl ImpactAnalysisAgent {
             lineage_analyzer,
             communication_bus,
             agent_name: "impact_analysis".to_string(),
+            llm_provider: None,
+        })
+    }
+    
+    /// Create a new instance with LLM provider
+    pub fn with_llm(
+        artifact_parser: ArtifactParser,
+        communication_bus: Arc<AgentCommunicationBus>,
+        llm_provider: Box<dyn LLMProvider>,
+    ) -> Result<Self> {
+        let lineage_analyzer = LineageAnalyzer::new(artifact_parser.clone());
+        
+        Ok(Self {
+            artifact_parser,
+            lineage_analyzer,
+            communication_bus,
+            agent_name: "impact_analysis".to_string(),
+            llm_provider: Some(llm_provider),
         })
     }
 
@@ -75,8 +96,12 @@ impl ImpactAnalysisAgent {
             &downstream_impact,
         );
 
-        // Generate recommendations
-        let recommendations = self.generate_recommendations(&downstream_impact, &risk_level);
+        // Generate recommendations - use LLM if available
+        let recommendations = if let Some(llm) = &self.llm_provider {
+            self.generate_llm_recommendations(pr_context, &downstream_impact, &risk_level).await?
+        } else {
+            self.generate_recommendations(&downstream_impact, &risk_level)
+        };
 
         let report = ImpactReport {
             id: Uuid::new_v4(),
@@ -112,6 +137,114 @@ impl ImpactAnalysisAgent {
         );
 
         Ok(report)
+    }
+    
+    /// Generate recommendations using LLM
+    async fn generate_llm_recommendations(
+        &self,
+        pr_context: &PRContext,
+        downstream_impact: &DownstreamImpact,
+        risk_level: &RiskLevel,
+    ) -> Result<Vec<String>> {
+        let llm = self.llm_provider.as_ref().unwrap();
+        
+        // Prepare context for LLM
+        let pr_diff = pr_context.changed_files.iter()
+            .map(|c| format!("File: {}\n+++ {} additions\n--- {} deletions", 
+                c.filename, c.additions, c.deletions))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        
+        // Get model definitions for affected models
+        let mut model_definitions = HashMap::new();
+        let mut artifact_parser = self.artifact_parser.clone();
+        for model in &downstream_impact.models {
+            if let Ok(def) = artifact_parser.get_model_definition(model) {
+                model_definitions.insert(model.clone(), def);
+            }
+        }
+        
+        // Convert lineage graph to DOT format for LLM
+        let lineage_graph_dot = self.lineage_analyzer.export_to_dot(&affected_models)?;
+        
+        let context = AnalysisContext {
+            pr_diff,
+            model_definitions,
+            lineage_graph: lineage_graph_dot,
+            test_results: None, // Could be populated if test results are available
+            historical_metrics: None, // Could be populated from historical data
+            warehouse_type: artifact_parser.get_warehouse_type()?.unwrap_or("unknown".to_string()),
+        };
+        
+        // Get the prompt template for impact analysis
+        let prompt_template = AgentPrompts::impact_analysis();
+        let prompt = AgentPrompts::build_prompt(&prompt_template, &context);
+        
+        // Create LLM request
+        let request = LLMRequest {
+            messages: vec![Message {
+                role: MessageRole::User,
+                content: prompt,
+                tool_calls: None,
+            }],
+            model: Model::GPT4Turbo, // Could be configurable
+            temperature: Some(0.3), // Lower temperature for more consistent analysis
+            max_tokens: Some(4096),
+            system_prompt: Some(prompt_template.system_prompt),
+            tools: None,
+            response_format: Some(ResponseFormat::JsonObject),
+        };
+        
+        // Get LLM response
+        let response = llm.complete(request).await?;
+        
+        // Parse the structured response
+        let analysis: serde_json::Value = serde_json::from_str(&response.content)?;
+        
+        // Extract recommendations from the LLM response
+        let mut recommendations = Vec::new();
+        
+        // Add basic risk level recommendation
+        match risk_level {
+            RiskLevel::Critical => {
+                recommendations.push("🚨 Critical impact detected! This change affects a large number of downstream resources. Consider breaking this into smaller, incremental changes.".to_string());
+            }
+            RiskLevel::High => {
+                recommendations.push("⚠️ High impact change. Ensure thorough testing of all affected downstream models.".to_string());
+            }
+            RiskLevel::Medium => {
+                recommendations.push("📊 Medium impact change. Review affected models and tests before merging.".to_string());
+            }
+            RiskLevel::Low => {
+                recommendations.push("✅ Low impact change. Standard review process is sufficient.".to_string());
+            }
+        }
+        
+        // Add LLM-generated recommendations
+        if let Some(llm_recs) = analysis["recommendations"].as_array() {
+            for rec in llm_recs {
+                if let Some(action) = rec["action"].as_str() {
+                    let priority = rec["priority"].as_str().unwrap_or("Medium");
+                    let rationale = rec["rationale"].as_str().unwrap_or("");
+                    recommendations.push(format!("[{}] {} - {}", priority, action, rationale));
+                }
+            }
+        }
+        
+        // Add findings as recommendations if they're critical
+        if let Some(findings) = analysis["findings"].as_array() {
+            for finding in findings {
+                if let Some(severity) = finding["severity"].as_str() {
+                    if severity == "Critical" || severity == "High" {
+                        if let Some(desc) = finding["description"].as_str() {
+                            recommendations.push(format!("⚠️ {}: {}", severity, desc));
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(recommendations)
     }
 
     /// Generate recommendations based on impact analysis

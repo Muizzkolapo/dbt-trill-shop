@@ -1,9 +1,11 @@
 use crate::agents::communication::{AgentCommunicationBus, AgentCommunication};
 use crate::artifacts::ArtifactParser;
 use crate::types::*;
+use crate::llm::{LLMProvider, LLMRequest, Message, MessageRole, Model, AnalysisContext, AgentPrompts, ResponseFormat, AgentType};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
+use std::collections::HashMap;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
@@ -12,6 +14,7 @@ pub struct QualityValidationAgent {
     artifact_parser: ArtifactParser,
     communication_bus: Arc<AgentCommunicationBus>,
     agent_name: String,
+    llm_provider: Option<Box<dyn LLMProvider>>,
 }
 
 impl QualityValidationAgent {
@@ -23,6 +26,21 @@ impl QualityValidationAgent {
             artifact_parser,
             communication_bus,
             agent_name: "quality_validation".to_string(),
+            llm_provider: None,
+        })
+    }
+    
+    /// Create a new instance with LLM provider
+    pub fn with_llm(
+        artifact_parser: ArtifactParser,
+        communication_bus: Arc<AgentCommunicationBus>,
+        llm_provider: Box<dyn LLMProvider>,
+    ) -> Result<Self> {
+        Ok(Self {
+            artifact_parser,
+            communication_bus,
+            agent_name: "quality_validation".to_string(),
+            llm_provider: Some(llm_provider),
         })
     }
 
@@ -104,9 +122,59 @@ impl QualityValidationAgent {
         let mut complexity_issues = Vec::new();
         let mut best_practice_violations = Vec::new();
 
+        // Use LLM if available for advanced analysis
+        if let Some(llm) = &self.llm_provider {
+            let llm_analysis = self.analyze_sql_quality_with_llm(pr_context).await?;
+            
+            // Extract issues from LLM analysis
+            if let Some(findings) = llm_analysis["findings"].as_array() {
+                for finding in findings {
+                    let severity = finding["severity"].as_str().unwrap_or("Medium");
+                    let category = finding["category"].as_str().unwrap_or("General");
+                    let description = finding["description"].as_str().unwrap_or("");
+                    let affected_files = finding["affected_resources"].as_array()
+                        .map(|arr| arr.iter()
+                            .filter_map(|v| v.as_str())
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>())
+                        .unwrap_or_default();
+                    
+                    let issue = QualityIssue {
+                        file_path: affected_files.first().cloned().unwrap_or_default(),
+                        line_number: None,
+                        column_number: None,
+                        issue_type: category.to_string(),
+                        severity: match severity {
+                            "Critical" => Severity::Critical,
+                            "High" => Severity::High,
+                            "Medium" => Severity::Medium,
+                            "Low" => Severity::Low,
+                            _ => Severity::Medium,
+                        },
+                        message: description.to_string(),
+                        suggestion: finding["recommendation"].as_str().map(|s| s.to_string()),
+                    };
+                    
+                    match category {
+                        "Syntax Error" => syntax_errors.push(issue),
+                        "Complexity" => complexity_issues.push(issue),
+                        _ => best_practice_violations.push(issue),
+                    }
+                }
+            }
+            
+            let score = llm_analysis["metrics"]["code_quality_score"].as_f64().unwrap_or(85.0) * 100.0;
+            
+            return Ok(SqlQualityResult {
+                syntax_errors,
+                complexity_issues,
+                best_practice_violations,
+                score,
+            });
+        }
+
+        // Fallback to basic validation
         for file in sql_files {
-            // TODO: Implement actual SQL parsing and validation
-            // For now, create stub validation
             if file.filename.contains("deprecated") {
                 best_practice_violations.push(QualityIssue {
                     file_path: file.filename.clone(),
@@ -249,6 +317,97 @@ impl QualityValidationAgent {
         artifact_parser.load_manifest()?;
         
         Ok(())
+    }
+    
+    /// Analyze SQL quality using LLM
+    async fn analyze_sql_quality_with_llm(&self, pr_context: &PRContext) -> Result<serde_json::Value> {
+        let llm = self.llm_provider.as_ref().unwrap();
+        
+        // Prepare context for LLM
+        let pr_diff = pr_context.changed_files.iter()
+            .filter(|c| c.filename.ends_with(".sql"))
+            .map(|c| format!("File: {}\n+++ {} additions\n--- {} deletions", 
+                c.filename, c.additions, c.deletions))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        
+        // Get model definitions for changed models
+        let mut model_definitions = HashMap::new();
+        let mut artifact_parser = self.artifact_parser.clone();
+        let changed_models = artifact_parser.discover_changed_models(
+            &pr_context.changed_files.iter()
+                .map(|c| c.filename.clone())
+                .collect::<Vec<_>>()
+        )?;
+        
+        for model_id in &changed_models {
+            if let Ok(def) = artifact_parser.get_model_definition(model_id) {
+                model_definitions.insert(model_id.clone(), def);
+            }
+        }
+        
+        // Get test results if available
+        let test_results = if let Ok(run_results) = artifact_parser.load_run_results() {
+            if let Some(results) = run_results {
+                let mut test_map = HashMap::new();
+                if let Some(results_array) = results["results"].as_array() {
+                    for result in results_array {
+                        if let (Some(unique_id), Some(status)) = 
+                            (result["unique_id"].as_str(), result["status"].as_str()) {
+                            test_map.insert(
+                                unique_id.to_string(),
+                                crate::llm::interfaces::TestResult {
+                                    status: status.to_string(),
+                                    message: result["message"].as_str().map(|s| s.to_string()),
+                                    severity: "info".to_string(),
+                                }
+                            );
+                        }
+                    }
+                }
+                Some(test_map)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        
+        let context = AnalysisContext {
+            pr_diff,
+            model_definitions,
+            lineage_graph: String::new(), // Not needed for quality analysis
+            test_results,
+            historical_metrics: None,
+            warehouse_type: artifact_parser.get_warehouse_type()?.unwrap_or("unknown".to_string()),
+        };
+        
+        // Get the prompt template for quality validation
+        let prompt_template = AgentPrompts::get_template(&AgentType::Quality);
+        let prompt = AgentPrompts::build_prompt(&prompt_template, &context);
+        
+        // Create LLM request
+        let request = LLMRequest {
+            messages: vec![Message {
+                role: MessageRole::User,
+                content: prompt,
+                tool_calls: None,
+            }],
+            model: Model::GPT4Turbo,
+            temperature: Some(0.3),
+            max_tokens: Some(4096),
+            system_prompt: Some(prompt_template.system_prompt),
+            tools: None,
+            response_format: Some(ResponseFormat::JsonObject),
+        };
+        
+        // Get LLM response
+        let response = llm.complete(request).await?;
+        
+        // Parse the structured response
+        let analysis: serde_json::Value = serde_json::from_str(&response.content)?;
+        
+        Ok(analysis)
     }
 }
 
