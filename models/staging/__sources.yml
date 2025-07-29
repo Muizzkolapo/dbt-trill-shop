@@ -2,19 +2,89 @@ version: 2
 
 sources:
   - name: ecom
-    schema: raw
-    description: E-commerce data for the Jaffle Shop
+    schema: google_trends  
+    description: '{{ doc("source_google_trends") }}'
     tables:
-      - name: raw_customers
-        description: One record per person who has purchased one or more items
-      - name: raw_orders
-        description: One record per order (consisting of one or more order items)
-        loaded_at_field: ordered_at
-      - name: raw_items
-        description: Items included in an order
-      - name: raw_stores
-        loaded_at_field: opened_at
-      - name: raw_products
-        description: One record per SKU for items sold in stores
-      - name: raw_supplies
-        description: One record per supply per SKU of items sold in stores
+      - name: international_top_rising_terms
+        description: '{{ doc("table_international_top_rising_terms") }}'
+        columns:
+          - name: refresh_date
+            description: '{{ doc("col_refresh_date") }}'
+          - name: country_code
+            description: '{{ doc("col_country_code") }}'
+          - name: region_name
+            description: '{{ doc("col_region_name") }}'
+          - name: country_name
+            description: '{{ doc("col_country_name") }}'
+          - name: region_code
+            description: '{{ doc("col_region_code") }}'
+          - name: term
+            description: '{{ doc("col_term") }}'
+          - name: week
+            description: '{{ doc("col_week") }}'
+          - name: score
+            description: '{{ doc("col_score") }}'
+          - name: rank
+            description: '{{ doc("col_rank") }}'
+          - name: percent_gain
+            description: '{{ doc("col_percent_gain") }}'
+      
+      - name: international_top_terms
+        description: '{{ doc("table_international_top_terms") }}'
+        columns:
+          - name: country_name
+            description: '{{ doc("col_country_name") }}'
+          - name: country_code
+            description: '{{ doc("col_country_code") }}'
+          - name: region_name
+            description: '{{ doc("col_region_name") }}'
+          - name: term
+            description: '{{ doc("col_term") }}'
+          - name: score
+            description: '{{ doc("col_score") }}'
+          - name: rank
+            description: '{{ doc("col_rank") }}'
+          - name: region_code
+            description: '{{ doc("col_region_code") }}'
+          - name: week
+            description: '{{ doc("col_week") }}'
+          - name: refresh_date
+            description: '{{ doc("col_refresh_date") }}'
+      
+      - name: top_rising_terms
+        description: '{{ doc("table_top_rising_terms") }}'
+        columns:
+          - name: percent_gain
+            description: '{{ doc("col_percent_gain") }}'
+          - name: refresh_date
+            description: '{{ doc("col_refresh_date") }}'
+          - name: dma_name
+            description: '{{ doc("col_dma_name") }}'
+          - name: dma_id
+            description: '{{ doc("col_dma_id") }}'
+          - name: term
+            description: '{{ doc("col_term") }}'
+          - name: week
+            description: '{{ doc("col_week") }}'
+          - name: score
+            description: '{{ doc("col_score") }}'
+          - name: rank
+            description: '{{ doc("col_rank") }}'
+      
+      - name: top_terms
+        description: '{{ doc("table_top_terms") }}'
+        columns:
+          - name: refresh_date
+            description: '{{ doc("col_refresh_date") }}'
+          - name: dma_name
+            description: '{{ doc("col_dma_name") }}'
+          - name: dma_id
+            description: '{{ doc("col_dma_id") }}'
+          - name: term
+            description: '{{ doc("col_term") }}'
+          - name: week
+            description: '{{ doc("col_week") }}'
+          - name: score
+            description: '{{ doc("col_score") }}'
+          - name: rank
+            description: '{{ doc("col_rank") }}'

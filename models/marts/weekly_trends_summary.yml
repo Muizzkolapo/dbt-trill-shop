@@ -1,0 +1,46 @@
+models:
+  - name: weekly_trends_summary
+    description: '{{ doc("model_weekly_trends_summary") }}'
+    columns:
+      - name: week
+        description: '{{ doc("col_week") }}'
+        data_tests:
+          - not_null
+      - name: refresh_date
+        description: '{{ doc("col_refresh_date") }}'
+        data_tests:
+          - not_null
+      - name: trend_type
+        description: '{{ doc("col_trend_type") }}'
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['international_rising', 'international_top', 'us_rising', 'us_top']
+      - name: total_terms
+        description: Total number of terms in this trend type for the week
+        data_tests:
+          - not_null
+      - name: avg_score
+        description: Average search score for the week
+        data_tests:
+          - not_null
+      - name: avg_percent_gain
+        description: Average percentage gain (only for rising trends)
+      - name: max_percent_gain
+        description: Maximum percentage gain (only for rising trends)
+      - name: unique_geos
+        description: Number of unique geographic areas represented
+        data_tests:
+          - not_null
+      - name: trend_category
+        description: '{{ doc("col_trend_category") }}'
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['Rising Trends', 'Top Trends']
+      - name: market_scope
+        description: '{{ doc("col_market_scope") }}'
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['International', 'US Market']

@@ -1,0 +1,52 @@
+models:
+  - name: top_terms_comparison
+    description: '{{ doc("model_top_terms_comparison") }}'
+    columns:
+      - name: scope
+        description: '{{ doc("col_scope") }}'
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['international', 'us_dma']
+      - name: geo_name
+        description: '{{ doc("col_geo_name") }}'
+        data_tests:
+          - not_null
+      - name: geo_code
+        description: '{{ doc("col_geo_code") }}'
+        data_tests:
+          - not_null
+      - name: region_name
+        description: '{{ doc("col_region_name") }}'
+      - name: term
+        description: '{{ doc("col_term") }}'
+        data_tests:
+          - not_null
+      - name: week
+        description: '{{ doc("col_week") }}'
+        data_tests:
+          - not_null
+      - name: refresh_date
+        description: '{{ doc("col_refresh_date") }}'
+        data_tests:
+          - not_null
+      - name: score
+        description: '{{ doc("col_score") }}'
+        data_tests:
+          - not_null
+      - name: rank
+        description: '{{ doc("col_rank") }}'
+        data_tests:
+          - not_null
+      - name: rank_category
+        description: '{{ doc("col_rank_category") }}'
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['#1 Term', 'Top 5', 'Top 10', 'Other']
+      - name: interest_level
+        description: '{{ doc("col_interest_level") }}'
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['Very High Interest', 'High Interest', 'Moderate Interest', 'Low Interest', 'Very Low Interest']

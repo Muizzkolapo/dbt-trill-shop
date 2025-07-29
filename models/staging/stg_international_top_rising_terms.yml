@@ -1,0 +1,40 @@
+models:
+  - name: stg_international_top_rising_terms
+    description: '{{ doc("table_international_top_rising_terms") }}'
+    columns:
+      - name: country_code
+        description: '{{ doc("col_country_code") }}'
+        data_tests:
+          - not_null
+      - name: region_code
+        description: '{{ doc("col_region_code") }}'
+      - name: country_name
+        description: '{{ doc("col_country_name") }}'
+        data_tests:
+          - not_null
+      - name: region_name
+        description: '{{ doc("col_region_name") }}'
+      - name: term
+        description: '{{ doc("col_term") }}'
+        data_tests:
+          - not_null
+      - name: refresh_date
+        description: '{{ doc("col_refresh_date") }}'
+        data_tests:
+          - not_null
+      - name: week
+        description: '{{ doc("col_week") }}'
+        data_tests:
+          - not_null
+      - name: score
+        description: '{{ doc("col_score") }}'
+        data_tests:
+          - not_null
+      - name: rank
+        description: '{{ doc("col_rank") }}'
+        data_tests:
+          - not_null
+      - name: percent_gain
+        description: '{{ doc("col_percent_gain") }}'
+        data_tests:
+          - not_null

@@ -1,0 +1,56 @@
+models:
+  - name: trending_terms_analysis
+    description: '{{ doc("model_trending_terms_analysis") }}'
+    columns:
+      - name: scope
+        description: '{{ doc("col_scope") }}'
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['international', 'us_dma']
+      - name: geo_name
+        description: '{{ doc("col_geo_name") }}'
+        data_tests:
+          - not_null
+      - name: geo_code
+        description: '{{ doc("col_geo_code") }}'
+        data_tests:
+          - not_null
+      - name: region_name
+        description: '{{ doc("col_region_name") }}'
+      - name: term
+        description: '{{ doc("col_term") }}'
+        data_tests:
+          - not_null
+      - name: week
+        description: '{{ doc("col_week") }}'
+        data_tests:
+          - not_null
+      - name: refresh_date
+        description: '{{ doc("col_refresh_date") }}'
+        data_tests:
+          - not_null
+      - name: score
+        description: '{{ doc("col_score") }}'
+        data_tests:
+          - not_null
+      - name: rank
+        description: '{{ doc("col_rank") }}'
+        data_tests:
+          - not_null
+      - name: percent_gain
+        description: '{{ doc("col_percent_gain") }}'
+        data_tests:
+          - not_null
+      - name: rank_tier
+        description: '{{ doc("col_rank_tier") }}'
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['Top 5', 'Top 10', 'Top 25', 'Other']
+      - name: growth_category
+        description: '{{ doc("col_growth_category") }}'
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['Explosive (1000%+)', 'Very High (500-999%)', 'High (200-499%)', 'Moderate (100-199%)', 'Low (<100%)']

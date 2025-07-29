@@ -1,0 +1,32 @@
+models:
+  - name: stg_top_terms
+    description: '{{ doc("table_top_terms") }}'
+    columns:
+      - name: dma_id
+        description: '{{ doc("col_dma_id") }}'
+        data_tests:
+          - not_null
+      - name: dma_name
+        description: '{{ doc("col_dma_name") }}'
+        data_tests:
+          - not_null
+      - name: term
+        description: '{{ doc("col_term") }}'
+        data_tests:
+          - not_null
+      - name: refresh_date
+        description: '{{ doc("col_refresh_date") }}'
+        data_tests:
+          - not_null
+      - name: week
+        description: '{{ doc("col_week") }}'
+        data_tests:
+          - not_null
+      - name: score
+        description: '{{ doc("col_score") }}'
+        data_tests:
+          - not_null
+      - name: rank
+        description: '{{ doc("col_rank") }}'
+        data_tests:
+          - not_null
