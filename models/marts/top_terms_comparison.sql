@@ -19,7 +19,7 @@ us_top as (
         'us_dma' as scope,
         dma_name as geo_name,
         cast(dma_id as string) as geo_code,
-        null as region_name,
+        cast(null as string) as region_name,
         term,
         week,
         refresh_date,
